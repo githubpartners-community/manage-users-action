@@ -17,6 +17,9 @@ inputs:
   token:
     required: true
     description: 'Personal Access Token or GITHUB_TOKEN (or comma separated tokens)'
+  team:
+    required: false
+    description: 'Slug of the team to add users to'
 runs:
   using: 'node16'
   main: 'dist/index.js'

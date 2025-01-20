@@ -32,6 +32,7 @@ Add the following snippet to an existing workflow file:
     token: ${{ secrets.GITHUB_TOKEN }}
     repositories: owner/repo1,owner/repo2
     users: user1,user2
+    team: team-slug
     role: push
     action: add
 ```

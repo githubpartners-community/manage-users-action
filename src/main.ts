@@ -1,7 +1,7 @@
 import {error, getInput, info, setFailed} from '@actions/core'
 import {getOctokit} from '@actions/github'
 
-async function validate(token: string, users: string[], repositories: string[]): Promise<boolean> {
+async function validate(token: string, users: string[], repositories: string[], team?: string): Promise<boolean> {
   const octokit = getOctokit(token)
 
   let invalid = false
@@ -24,6 +24,18 @@ async function validate(token: string, users: string[], repositories: string[]):
     } catch (e) {
       invalid = true
       errorMessage += `Repository ${repository} does not exist.\n`
+    }
+  }
+
+  if (team) {
+    try {
+      await octokit.rest.teams.getByName({
+        org: repositories[0].split('/')[0],
+        team_slug: team
+      })
+    } catch (e) {
+      invalid = true
+      errorMessage += `Team ${team} does not exist.\n`
     }
   }
 
@@ -58,60 +70,37 @@ async function run(): Promise<void> {
     const action: string = getInput('action')
     info(`action: ${action}`)
 
-    if (!validate(token, users, repositories)) return
+    const team = action === 'add' ? getInput('team', {required: true}) : undefined
+    if (team) {
+      info(`team: ${team}`)
+    }
+
+    if (!validate(token, users, repositories, team)) return
 
     const octokit = getOctokit(token)
 
-    for (const repository of repositories) {
-      for (const user of users) {
-        if (action === 'add') {
-          info(`Adding ${user} to ${repository} with role ${role}`)
-          await octokit.rest.repos.addCollaborator({
-            owner: repository.split('/')[0],
-            repo: repository.split('/')[1],
-            username: user,
-            permission: role
-          })
-        } else if (action === 'remove') {
-          try {
-            await octokit.rest.repos.checkCollaborator({
-              owner: repository.split('/')[0],
-              repo: repository.split('/')[1],
-              username: user
-            })
-
-            info(`Removing ${user} from ${repository}`)
-            await octokit.rest.repos.removeCollaborator({
-              owner: repository.split('/')[0],
-              repo: repository.split('/')[1],
-              username: user
-            })
-          } catch (e) {
-            info(`User ${user} is not a collaborator on ${repository}`)
-
-            const invitations = await octokit.rest.repos.listInvitations({
-              owner: repository.split('/')[0],
-              repo: repository.split('/')[1]
-            })
-
-            const invitation = invitations.data.find(invite => invite.invitee?.login === user)
-            if (invitation) {
-              info(`Cancelling invitation for ${user} to ${repository}`)
-              await octokit.rest.repos.deleteInvitation({
-                owner: repository.split('/')[0],
-                repo: repository.split('/')[1],
-                invitation_id: invitation.id
-              })
-            }
-          }
-        } else {
-          throw new Error('Action must be add or remove')
-        }
+    for (const user of users) {
+      if (action === 'add') {
+        info(`Adding ${user} to team ${team}`)
+        await octokit.rest.teams.addOrUpdateMembershipForUserInOrg({
+          org: repositories[0].split('/')[0],
+          team_slug: team!,
+          username: user,
+          role: 'member'
+        })
+      } else if (action === 'remove') {
+        info(`Removing ${user} from organization`)
+        await octokit.rest.orgs.removeMembershipForUser({
+          org: repositories[0].split('/')[0],
+          username: user
+        })
+      } else {
+        throw new Error('Action must be add or remove')
       }
     }
   } catch (e: unknown) {
     if (e instanceof Error) {
-      error(`Error adding users to repositories: ${e.message}`)
+      error(`Error managing users in teams: ${e.message}`)
       setFailed(e.message)
     }
   }
