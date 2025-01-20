@@ -73,6 +73,7 @@ async function run(): Promise<void> {
     info(`action: ${action}`)
 
     const teams = action === 'add' ? getInput('teams', {required: true}).replace(/\s/g, '').split(',') : undefined
+    info(`teams: ${teams}`)
     if (teams) {
       for (const team of teams) {
         info(`team: ${team}`)
