@@ -18,7 +18,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core_1 = __nccwpck_require__(2186);
 const github_1 = __nccwpck_require__(5438);
-function validate(token, users, repositories) {
+function validate(token, users, organization, teams) {
     return __awaiter(this, void 0, void 0, function* () {
         const octokit = (0, github_1.getOctokit)(token);
         let invalid = false;
@@ -32,16 +32,23 @@ function validate(token, users, repositories) {
                 errorMessage += `User ${user} does not exist.\n`;
             }
         }
-        for (const repository of repositories) {
+        try {
+            yield octokit.rest.orgs.get({ org: organization });
+        }
+        catch (e) {
+            invalid = true;
+            errorMessage += `Organization ${organization} does not exist.\n`;
+        }
+        for (const team of teams) {
             try {
-                yield octokit.rest.repos.get({
-                    owner: repository.split('/')[0],
-                    repo: repository.split('/')[1]
+                yield octokit.rest.teams.getByName({
+                    org: organization,
+                    team_slug: team
                 });
             }
             catch (e) {
                 invalid = true;
-                errorMessage += `Repository ${repository} does not exist.\n`;
+                errorMessage += `Team ${team} does not exist.\n`;
             }
         }
         if (invalid) {
@@ -61,68 +68,45 @@ function run() {
             for (const user of users) {
                 (0, core_1.info)(`user: ${user}`);
             }
-            const repositories = (0, core_1.getInput)('repositories').replace(/\s/g, '').split(',');
-            for (const repository of repositories) {
-                (0, core_1.info)(`repository: ${repository}`);
-            }
-            const role = (0, core_1.getInput)('role');
-            (0, core_1.info)(`role: ${role}`);
+            const organization = (0, core_1.getInput)('organization', { required: true });
+            (0, core_1.info)(`organization: ${organization}`);
             const action = (0, core_1.getInput)('action');
             (0, core_1.info)(`action: ${action}`);
-            if (!validate(token, users, repositories))
+            const teams = (0, core_1.getInput)('teams', { required: true }).replace(/\s/g, '').split(',');
+            (0, core_1.info)(`teams: ${teams}`);
+            for (const team of teams) {
+                (0, core_1.info)(`team: ${team}`);
+            }
+            if (!(yield validate(token, users, organization, teams)))
                 return;
             const octokit = (0, github_1.getOctokit)(token);
-            for (const repository of repositories) {
-                for (const user of users) {
-                    if (action === 'add') {
-                        (0, core_1.info)(`Adding ${user} to ${repository} with role ${role}`);
-                        yield octokit.rest.repos.addCollaborator({
-                            owner: repository.split('/')[0],
-                            repo: repository.split('/')[1],
+            for (const user of users) {
+                if (action === 'add') {
+                    for (const team of teams) {
+                        (0, core_1.info)(`Adding ${user} to team ${team}`);
+                        yield octokit.rest.teams.addOrUpdateMembershipForUserInOrg({
+                            org: organization,
+                            team_slug: team,
                             username: user,
-                            permission: role
+                            role: 'member'
                         });
                     }
-                    else if (action === 'remove') {
-                        try {
-                            yield octokit.rest.repos.checkCollaborator({
-                                owner: repository.split('/')[0],
-                                repo: repository.split('/')[1],
-                                username: user
-                            });
-                            (0, core_1.info)(`Removing ${user} from ${repository}`);
-                            yield octokit.rest.repos.removeCollaborator({
-                                owner: repository.split('/')[0],
-                                repo: repository.split('/')[1],
-                                username: user
-                            });
-                        }
-                        catch (e) {
-                            (0, core_1.info)(`User ${user} is not a collaborator on ${repository}`);
-                            const invitations = yield octokit.rest.repos.listInvitations({
-                                owner: repository.split('/')[0],
-                                repo: repository.split('/')[1]
-                            });
-                            const invitation = invitations.data.find(invite => { var _a; return ((_a = invite.invitee) === null || _a === void 0 ? void 0 : _a.login) === user; });
-                            if (invitation) {
-                                (0, core_1.info)(`Cancelling invitation for ${user} to ${repository}`);
-                                yield octokit.rest.repos.deleteInvitation({
-                                    owner: repository.split('/')[0],
-                                    repo: repository.split('/')[1],
-                                    invitation_id: invitation.id
-                                });
-                            }
-                        }
-                    }
-                    else {
-                        throw new Error('Action must be add or remove');
-                    }
+                }
+                else if (action === 'remove') {
+                    (0, core_1.info)(`Removing ${user} from organization ${organization}`);
+                    yield octokit.rest.orgs.removeMembershipForUser({
+                        org: organization,
+                        username: user
+                    });
+                }
+                else {
+                    throw new Error('Action must be add or remove');
                 }
             }
         }
         catch (e) {
             if (e instanceof Error) {
-                (0, core_1.error)(`Error adding users to repositories: ${e.message}`);
+                (0, core_1.error)(`Error managing users in teams: ${e.message}`);
                 (0, core_1.setFailed)(e.message);
             }
         }
