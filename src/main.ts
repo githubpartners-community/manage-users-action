@@ -1,7 +1,7 @@
 import {error, getInput, info, setFailed} from '@actions/core'
 import {getOctokit} from '@actions/github'
 
-async function validate(token: string, users: string[], repositories: string[], team?: string): Promise<boolean> {
+async function validate(token: string, users: string[], repositories: string[], teams?: string[]): Promise<boolean> {
   const octokit = getOctokit(token)
 
   let invalid = false
@@ -27,15 +27,17 @@ async function validate(token: string, users: string[], repositories: string[], 
     }
   }
 
-  if (team) {
-    try {
-      await octokit.rest.teams.getByName({
-        org: repositories[0].split('/')[0],
-        team_slug: team
-      })
-    } catch (e) {
-      invalid = true
-      errorMessage += `Team ${team} does not exist.\n`
+  if (teams) {
+    for (const team of teams) {
+      try {
+        await octokit.rest.teams.getByName({
+          org: repositories[0].split('/')[0],
+          team_slug: team
+        })
+      } catch (e) {
+        invalid = true
+        errorMessage += `Team ${team} does not exist.\n`
+      }
     }
   }
 
@@ -70,24 +72,28 @@ async function run(): Promise<void> {
     const action: string = getInput('action')
     info(`action: ${action}`)
 
-    const team = action === 'add' ? getInput('team', {required: true}) : undefined
-    if (team) {
-      info(`team: ${team}`)
+    const teams = action === 'add' ? getInput('teams', {required: true}).replace(/\s/g, '').split(',') : undefined
+    if (teams) {
+      for (const team of teams) {
+        info(`team: ${team}`)
+      }
     }
 
-    if (!validate(token, users, repositories, team)) return
+    if (!validate(token, users, repositories, teams)) return
 
     const octokit = getOctokit(token)
 
     for (const user of users) {
       if (action === 'add') {
-        info(`Adding ${user} to team ${team}`)
-        await octokit.rest.teams.addOrUpdateMembershipForUserInOrg({
-          org: repositories[0].split('/')[0],
-          team_slug: team!,
-          username: user,
-          role: 'member'
-        })
+        for (const team of teams!) {
+          info(`Adding ${user} to team ${team}`)
+          await octokit.rest.teams.addOrUpdateMembershipForUserInOrg({
+            org: repositories[0].split('/')[0],
+            team_slug: team,
+            username: user,
+            role: 'member'
+          })
+        }
       } else if (action === 'remove') {
         info(`Removing ${user} from organization`)
         await octokit.rest.orgs.removeMembershipForUser({
