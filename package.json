@@ -1,7 +1,7 @@
 {
   "name": "manage-users-action",
   "version": "0.1.0",
-  "description": "Action to add users as external collaborators of repositories",
+  "description": "Action to add users as members of a team",
   "private": true,
   "main": "lib/main.js",
   "scripts": {
@@ -21,14 +21,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/ps-resources/manage-users-action.git"
+    "url": "https://github.com/githubpartners-community/manage-users-action.git"
   },
   "keywords": [
     "actions",
     "node",
     "setup"
   ],
-  "author": "Guilherme Teixeira",
+  "author": "Margarita Sanz",
   "dependencies": {
     "@actions/core": "^1.10.0",
     "@actions/github": "^5.1.1"
@@ -53,9 +53,9 @@
     "typescript": "^4.9.3"
   },
   "bugs": {
-    "url": "https://github.com/ps-resources/manage-users-action/issues"
+    "url": "https://github.com/githubpartners-community/manage-users-action/issues"
   },
-  "homepage": "https://github.com/ps-resources/manage-users-action#readme",
+  "homepage": "https://github.com/githubpartners-community/manage-users-action#readme",
   "directories": {
     "lib": "lib"
   },

@@ -1,6 +1,6 @@
 name: 'Manage Users Action'
 description: 'Run this action to provide access to users for certain teams in an organization'
-author: 'ps-resources'
+author: 'githubpartners-community'
 inputs:
   users:
     required: true

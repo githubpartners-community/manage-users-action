@@ -27,7 +27,7 @@ Add the following snippet to an existing workflow file:
 ```yml
 - name: Run Manage Users Action
   id: manage-users-action
-  uses: ps-resources/manage-users-action@main
+  uses: githubpartners-community/manage-users-action@main
   with:
     token: ${{ secrets.GITHUB_TOKEN }}
     organization: owner
